@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Event Finder</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:linear-gradient(135deg,#6dd5ed,#2193b0);
+text-align:center;
+margin:0;
+}
+
+h1{
+color:white;
+padding:20px;
+}
+
+#search{
+width:60%;
+padding:12px;
+border-radius:20px;
+border:none;
+margin:10px;
+}
+
+button{
+padding:10px 16px;
+border:none;
+border-radius:20px;
+background:#ff6b3d;
+color:white;
+cursor:pointer;
+margin:5px;
+}
+
+button:hover{
+background:#ff3c00;
+}
+
+.event{
+background:white;
+margin:15px auto;
+padding:15px;
+border-radius:12px;
+width:70%;
+box-shadow:0 5px 10px rgba(0,0,0,0.2);
+}
+
+form{
+background:white;
+padding:20px;
+margin:20px auto;
+width:70%;
+border-radius:12px;
+}
+
+input,select{
+padding:10px;
+margin:8px;
+border-radius:8px;
+border:1px solid #ccc;
+}
+
+.delete{
+background:red;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>🎉 Event Finder</h1>
+
+<input type="text" id="search" placeholder="Search events..." onkeyup="searchEvents()">
+
+<div>
+
+<button onclick="filterCategory('All')">All</button>
+<button onclick="filterCategory('Music')">Music</button>
+<button onclick="filterCategory('Sports')">Sports</button>
+<button onclick="filterCategory('Tech')">Tech</button>
+<button onclick="filterCategory('Community')">Community</button>
+
+</div>
+
+<form onsubmit="addEvent(event)">
+
+<h3>Add Event</h3>
+
+<input type="text" id="name" placeholder="Event Name" required>
+
+<input type="date" id="date" required>
+
+<input type="text" id="location" placeholder="Location" required>
+
+<select id="category">
+<option value="Music">Music</option>
+<option value="Sports">Sports</option>
+<option value="Tech">Tech</option>
+<option value="Community">Community</option>
+</select>
+
+<br>
+
+<button type="submit">Add Event</button>
+
+</form>
+
+<div id="events"></div>
+
+<script>
+
+/* ask permission for notifications */
+
+if ("Notification" in window){
+Notification.requestPermission();
+}
+
+/* show notification */
+
+function showNotification(title,message){
+
+if(Notification.permission==="granted"){
+
+new Notification(title,{
+body:message,
+icon:"https://cdn-icons-png.flaticon.com/512/1827/1827349.png"
+});
+
+}
+
+}
+
+/* load saved events */
+
+let events = JSON.parse(localStorage.getItem("events")) || [
+
+{ name:"Music Festival",date:"2026-05-10",category:"Music",location:"City Park" },
+
+{ name:"Tech Meetup",date:"2026-05-12",category:"Tech",location:"Innovation Hub" }
+
+];
+
+function saveEvents(){
+
+localStorage.setItem("events",JSON.stringify(events));
+
+}
+
+function displayEvents(data){
+
+const container=document.getElementById("events");
+
+container.innerHTML="";
+
+data.forEach((event,index)=>{
+
+container.innerHTML+=`
+
+<div class="event">
+
+<h3>${event.name}</h3>
+
+<p>📅 ${event.date}</p>
+
+<p>📍 ${event.location}</p>
+
+<p>🏷 ${event.category}</p>
+
+<button class="delete" onclick="deleteEvent(${index})">Delete</button>
+
+</div>
+
+`;
+
+});
+
+}
+
+function searchEvents(){
+
+const search=document.getElementById("search").value.toLowerCase();
+
+const filtered=events.filter(e=>e.name.toLowerCase().includes(search));
+
+displayEvents(filtered);
+
+}
+
+function filterCategory(category){
+
+if(category==="All"){
+
+displayEvents(events);
+
+}
+
+else{
+
+const filtered=events.filter(e=>e.category===category);
+
+displayEvents(filtered);
+
+}
+
+}
+
+function addEvent(e){
+
+e.preventDefault();
+
+const newEvent={
+
+name:document.getElementById("name").value,
+
+date:document.getElementById("date").value,
+
+location:document.getElementById("location").value,
+
+category:document.getElementById("category").value
+
+};
+
+events.push(newEvent);
+
+saveEvents();
+
+displayEvents(events);
+
+/* notification */
+
+showNotification("New Event Added",newEvent.name+" on "+newEvent.date);
+
+document.getElementById("name").value="";
+document.getElementById("location").value="";
+
+}
+
+function deleteEvent(index){
+
+events.splice(index,1);
+
+saveEvents();
+
+displayEvents(events);
+
+}
+
+/* check events happening today */
+
+function checkTodayEvents(){
+
+let today=new Date().toISOString().split("T")[0];
+
+events.forEach(event=>{
+
+if(event.date===today){
+
+showNotification("Event Today!",event.name+" at "+event.location);
+
+}
+
+});
+
+}
+
+setInterval(checkTodayEvents,60000);
+
+displayEvents(events);
+
+</script>
+
+</body>
+
+</html>
