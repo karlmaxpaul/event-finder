@@ -164,7 +164,10 @@ container.innerHTML+=`
 
 <div class="event">
 
-<h3>${event.name}</h3>
+<h3>${event.name}</h3><h3>Set Event Reminder</h3>
+
+<input type="datetime-local" id="eventTime">
+<button onclick="scheduleNotification()">Set Reminder</button>
 
 <p>📅 ${event.date}</p>
 
