@@ -11,6 +11,7 @@ font-family:Arial;
 background:linear-gradient(135deg,#6dd5ed,#2193b0);
 text-align:center;
 margin:0;
+padding:20px;
 }
 
 h1{
@@ -34,6 +35,7 @@ background:#ff6b3d;
 color:white;
 cursor:pointer;
 margin:5px;
+font-size:14px;
 }
 
 button:hover{
@@ -47,6 +49,34 @@ padding:15px;
 border-radius:12px;
 width:70%;
 box-shadow:0 5px 10px rgba(0,0,0,0.2);
+text-align:left;
+}
+
+.event h3{
+margin:10px 0;
+color:#333;
+}
+
+.event-details{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+margin:10px 0;
+}
+
+.event-detail-item{
+text-align:center;
+padding:10px;
+background:#f5f5f5;
+border-radius:8px;
+}
+
+.event-actions{
+display:flex;
+gap:10px;
+justify-content:center;
+margin-top:15px;
+flex-wrap:wrap;
 }
 
 form{
@@ -57,15 +87,144 @@ width:70%;
 border-radius:12px;
 }
 
-input,select{
+input,select,textarea{
 padding:10px;
 margin:8px;
 border-radius:8px;
 border:1px solid #ccc;
+width:90%;
+box-sizing:border-box;
+}
+
+textarea{
+resize:vertical;
+min-height:80px;
+font-family:Arial;
 }
 
 .delete{
 background:red;
+}
+
+.delete:hover{
+background:#cc0000;
+}
+
+.edit{
+background:#4CAF50;
+}
+
+.edit:hover{
+background:#45a049;
+}
+
+.modal{
+display:none;
+position:fixed;
+z-index:1000;
+left:0;
+top:0;
+width:100%;
+height:100%;
+background-color:rgba(0,0,0,0.4);
+}
+
+.modal-content{
+background-color:#fefefe;
+margin:10% auto;
+padding:20px;
+border:1px solid #888;
+width:70%;
+border-radius:12px;
+}
+
+.close{
+color:#aaa;
+float:right;
+font-size:28px;
+font-weight:bold;
+cursor:pointer;
+}
+
+.close:hover{
+color:#000;
+}
+
+.stats{
+background:white;
+padding:15px;
+margin:20px auto;
+width:70%;
+border-radius:12px;
+display:grid;
+grid-template-columns:1fr 1fr 1fr 1fr;
+gap:10px;
+}
+
+.stat-box{
+background:linear-gradient(135deg,#667eea,#764ba2);
+color:white;
+padding:15px;
+border-radius:8px;
+}
+
+.stat-number{
+font-size:24px;
+font-weight:bold;
+}
+
+.stat-label{
+font-size:12px;
+margin-top:5px;
+}
+
+.filter-section{
+margin:20px 0;
+display:flex;
+justify-content:center;
+gap:10px;
+flex-wrap:wrap;
+}
+
+.sort-section{
+margin:20px 0;
+display:flex;
+justify-content:center;
+gap:10px;
+align-items:center;
+flex-wrap:wrap;
+}
+
+.export-btn{
+background:#2196F3;
+}
+
+.export-btn:hover{
+background:#0b7dda;
+}
+
+@media (max-width:768px){
+.event{
+width:90%;
+}
+
+form{
+width:90%;
+}
+
+.stats{
+grid-template-columns:1fr 1fr;
+width:90%;
+}
+
+.modal-content{
+width:90%;
+margin:20% auto;
+}
+
+#search{
+width:80%;
+}
 }
 
 </style>
@@ -78,40 +237,90 @@ background:red;
 
 <input type="text" id="search" placeholder="Search events..." onkeyup="searchEvents()">
 
-<div>
-
+<div class="filter-section">
 <button onclick="filterCategory('All')">All</button>
-<button onclick="filterCategory('Music')">Music</button>
-<button onclick="filterCategory('Sports')">Sports</button>
-<button onclick="filterCategory('Tech')">Tech</button>
-<button onclick="filterCategory('Community')">Community</button>
-
+<button onclick="filterCategory('Music')">🎵 Music</button>
+<button onclick="filterCategory('Sports')">⚽ Sports</button>
+<button onclick="filterCategory('Tech')">💻 Tech</button>
+<button onclick="filterCategory('Community')">👥 Community</button>
 </div>
 
-<form onsubmit="addEvent(event)">
+<div class="sort-section">
+<label for="sortBy">Sort by:</label>
+<select id="sortBy" onchange="handleSort()">
+<option value="date-asc">Date (Earliest First)</option>
+<option value="date-desc">Date (Latest First)</option>
+<option value="name">Name (A-Z)</option>
+</select>
+<button class="export-btn" onclick="exportEvents()">📥 Export Events</button>
+<button class="export-btn" onclick="importEvents()">📤 Import Events</button>
+</div>
 
+<div class="stats" id="stats"></div>
+
+<form onsubmit="addEvent(event)" id="eventForm">
 <h3>Add Event</h3>
 
 <input type="text" id="name" placeholder="Event Name" required>
 
 <input type="date" id="date" required>
 
+<input type="time" id="time" placeholder="Event Time">
+
 <input type="text" id="location" placeholder="Location" required>
 
+<textarea id="description" placeholder="Event Description (optional)"></textarea>
+
 <select id="category">
-<option value="Music">Music</option>
-<option value="Sports">Sports</option>
-<option value="Tech">Tech</option>
-<option value="Community">Community</option>
+<option value="Music">🎵 Music</option>
+<option value="Sports">⚽ Sports</option>
+<option value="Tech">💻 Tech</option>
+<option value="Community">👥 Community</option>
 </select>
 
 <br>
 
 <button type="submit">Add Event</button>
+<button type="reset" onclick="resetForm()">Clear</button>
 
 </form>
 
 <div id="events"></div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal">
+<div class="modal-content">
+<span class="close" onclick="closeEditModal()">&times;</span>
+<h2>Edit Event</h2>
+<form onsubmit="updateEvent(event)" id="editForm">
+
+<input type="text" id="editName" placeholder="Event Name" required>
+
+<input type="date" id="editDate" required>
+
+<input type="time" id="editTime" placeholder="Event Time">
+
+<input type="text" id="editLocation" placeholder="Location" required>
+
+<textarea id="editDescription" placeholder="Event Description (optional)"></textarea>
+
+<select id="editCategory">
+<option value="Music">🎵 Music</option>
+<option value="Sports">⚽ Sports</option>
+<option value="Tech">💻 Tech</option>
+<option value="Community">👥 Community</option>
+</select>
+
+<br>
+
+<button type="submit">Save Changes</button>
+<button type="button" onclick="closeEditModal()">Cancel</button>
+
+</form>
+</div>
+</div>
+
+<input type="file" id="fileInput" style="display:none" accept=".json" onchange="handleFileImport()">
 
 <script>
 
@@ -140,11 +349,18 @@ icon:"https://cdn-icons-png.flaticon.com/512/1827/1827349.png"
 
 let events = JSON.parse(localStorage.getItem("events")) || [
 
-{ name:"Music Festival",date:"2026-05-10",category:"Music",location:"City Park" },
+{ id:1, name:"Music Festival",date:"2026-05-10",time:"18:00",category:"Music",location:"City Park",description:"Annual music festival with live performances" },
 
-{ name:"Tech Meetup",date:"2026-05-12",category:"Tech",location:"Innovation Hub" }
+{ id:2, name:"Tech Meetup",date:"2026-05-12",time:"19:00",category:"Tech",location:"Innovation Hub",description:"Network with tech enthusiasts" }
 
 ];
+
+let currentSort = "date-asc";
+let editingId = null;
+
+function generateId(){
+return Math.max(...events.map(e=>e.id||0),0)+1;
+}
 
 function saveEvents(){
 
@@ -158,24 +374,42 @@ const container=document.getElementById("events");
 
 container.innerHTML="";
 
-data.forEach((event,index)=>{
+if(data.length===0){
+container.innerHTML="<p style='color:white;font-size:18px;margin:20px;'>No events found. Create one to get started! 🎯</p>";
+return;
+}
+
+data.forEach((event)=>{
+
+const timeDisplay = event.time ? `⏰ ${event.time}` : "⏰ No time set";
 
 container.innerHTML+=`
 
 <div class="event">
 
-<h3>${event.name}</h3><h3>Set Event Reminder</h3>
+<h3>${event.name}</h3>
 
-<input type="datetime-local" id="eventTime">
-<button onclick="scheduleNotification()">Set Reminder</button>
+<div class="event-details">
+<div class="event-detail-item">
+<strong>📅 Date</strong><br>${event.date}
+</div>
+<div class="event-detail-item">
+<strong>${timeDisplay}</strong>
+</div>
+<div class="event-detail-item">
+<strong>📍 Location</strong><br>${event.location}
+</div>
+<div class="event-detail-item">
+<strong>🏷 Category</strong><br>${event.category}
+</div>
+</div>
 
-<p>📅 ${event.date}</p>
+${event.description ? `<p><strong>Description:</strong> ${event.description}</p>` : ""}
 
-<p>📍 ${event.location}</p>
-
-<p>🏷 ${event.category}</p>
-
-<button class="delete" onclick="deleteEvent(${index})">Delete</button>
+<div class="event-actions">
+<button class="edit" onclick="openEditModal(${event.id})">✏️ Edit</button>
+<button class="delete" onclick="deleteEvent(${event.id})">🗑️ Delete</button>
+</div>
 
 </div>
 
@@ -189,9 +423,13 @@ function searchEvents(){
 
 const search=document.getElementById("search").value.toLowerCase();
 
-const filtered=events.filter(e=>e.name.toLowerCase().includes(search));
+const filtered=events.filter(e=>
+e.name.toLowerCase().includes(search) ||
+(e.description && e.description.toLowerCase().includes(search)) ||
+e.location.toLowerCase().includes(search)
+);
 
-displayEvents(filtered);
+displayEvents(sortEvents(filtered));
 
 }
 
@@ -199,7 +437,7 @@ function filterCategory(category){
 
 if(category==="All"){
 
-displayEvents(events);
+displayEvents(sortEvents(events));
 
 }
 
@@ -207,9 +445,37 @@ else{
 
 const filtered=events.filter(e=>e.category===category);
 
-displayEvents(filtered);
+displayEvents(sortEvents(filtered));
 
 }
+
+}
+
+function sortEvents(data){
+
+let sorted = [...data];
+
+switch(currentSort){
+case "date-asc":
+sorted.sort((a,b)=>new Date(a.date) - new Date(b.date));
+break;
+case "date-desc":
+sorted.sort((a,b)=>new Date(b.date) - new Date(a.date));
+break;
+case "name":
+sorted.sort((a,b)=>a.name.localeCompare(b.name));
+break;
+}
+
+return sorted;
+
+}
+
+function handleSort(){
+
+currentSort = document.getElementById("sortBy").value;
+
+displayEvents(sortEvents(events));
 
 }
 
@@ -219,13 +485,19 @@ e.preventDefault();
 
 const newEvent={
 
+id:generateId(),
+
 name:document.getElementById("name").value,
 
 date:document.getElementById("date").value,
 
+time:document.getElementById("time").value,
+
 location:document.getElementById("location").value,
 
-category:document.getElementById("category").value
+category:document.getElementById("category").value,
+
+description:document.getElementById("description").value
 
 };
 
@@ -233,28 +505,241 @@ events.push(newEvent);
 
 saveEvents();
 
-displayEvents(events);
+displayEvents(sortEvents(events));
 
-/* notification */
+updateStats();
 
 showNotification("New Event Added",newEvent.name+" on "+newEvent.date);
 
-document.getElementById("name").value="";
-document.getElementById("location").value="";
+document.getElementById("eventForm").reset();
 
 }
 
-function deleteEvent(index){
+function deleteEvent(id){
 
-events.splice(index,1);
+if(confirm("Are you sure you want to delete this event?")){
+
+events = events.filter(e=>e.id!==id);
 
 saveEvents();
 
-displayEvents(events);
+displayEvents(sortEvents(events));
+
+updateStats();
 
 }
 
-/* check events happening today */
+}
+
+function openEditModal(id){
+
+const event = events.find(e=>e.id===id);
+
+if(event){
+
+editingId = id;
+
+document.getElementById("editName").value = event.name;
+
+document.getElementById("editDate").value = event.date;
+
+document.getElementById("editTime").value = event.time||"";
+
+document.getElementById("editLocation").value = event.location;
+
+document.getElementById("editDescription").value = event.description||"";
+
+document.getElementById("editCategory").value = event.category;
+
+document.getElementById("editModal").style.display = "block";
+
+}
+
+}
+
+function closeEditModal(){
+
+document.getElementById("editModal").style.display = "none";
+
+editingId = null;
+
+}
+
+function updateEvent(e){
+
+e.preventDefault();
+
+const eventIndex = events.findIndex(ev=>ev.id===editingId);
+
+if(eventIndex > -1){
+
+events[eventIndex] = {
+
+id:editingId,
+
+name:document.getElementById("editName").value,
+
+date:document.getElementById("editDate").value,
+
+time:document.getElementById("editTime").value,
+
+location:document.getElementById("editLocation").value,
+
+category:document.getElementById("editCategory").value,
+
+description:document.getElementById("editDescription").value
+
+};
+
+saveEvents();
+
+displayEvents(sortEvents(events));
+
+updateStats();
+
+closeEditModal();
+
+showNotification("Event Updated",events[eventIndex].name+" has been updated");
+
+}
+
+}
+
+function updateStats(){
+
+const statsContainer = document.getElementById("stats");
+
+const totalEvents = events.length;
+
+const categories = [...new Set(events.map(e=>e.category))].length;
+
+const upcomingEvents = events.filter(e=>new Date(e.date) >= new Date()).length;
+
+const musicEvents = events.filter(e=>e.category==="Music").length;
+
+statsContainer.innerHTML = `
+
+<div class="stat-box">
+
+<div class="stat-number">${totalEvents}</div>
+
+<div class="stat-label">Total Events</div>
+
+</div>
+
+<div class="stat-box">
+
+<div class="stat-number">${categories}</div>
+
+<div class="stat-label">Categories</div>
+
+</div>
+
+<div class="stat-box">
+
+<div class="stat-number">${upcomingEvents}</div>
+
+<div class="stat-label">Upcoming</div>
+
+</div>
+
+<div class="stat-box">
+
+<div class="stat-number">${musicEvents}</div>
+
+<div class="stat-label">Music Events</div>
+
+</div>
+
+`;
+
+}
+
+function exportEvents(){
+
+const dataStr = JSON.stringify(events, null, 2);
+
+const dataBlob = new Blob([dataStr], {type: "application/json"});
+
+const url = URL.createObjectURL(dataBlob);
+
+const link = document.createElement("a");
+
+link.href = url;
+
+link.download = "events-" + new Date().toISOString().split('T')[0] + ".json";
+
+link.click();
+
+}
+
+function importEvents(){
+
+document.getElementById("fileInput").click();
+
+}
+
+function handleFileImport(){
+
+const file = document.getElementById("fileInput").files[0];
+
+if(file){
+
+const reader = new FileReader();
+
+reader.onload = function(e){
+
+try{
+
+const importedEvents = JSON.parse(e.target.result);
+
+if(Array.isArray(importedEvents)){
+
+const confirmImport = confirm("This will merge with existing events. Continue?");
+
+if(confirmImport){
+
+events = [...events,...importedEvents];
+
+saveEvents();
+
+displayEvents(sortEvents(events));
+
+updateStats();
+
+showNotification("Events Imported","Successfully imported "+importedEvents.length+" events");
+
+}
+
+}
+
+else{
+
+alert("Invalid file format. Please use a JSON file exported from Event Finder.");
+
+}
+
+}
+
+catch(error){
+
+alert("Error reading file: "+error.message);
+
+}
+
+};
+
+reader.readAsText(file);
+
+}
+
+}
+
+function resetForm(){
+
+document.getElementById("eventForm").reset();
+
+}
 
 function checkTodayEvents(){
 
@@ -274,7 +759,21 @@ showNotification("Event Today!",event.name+" at "+event.location);
 
 setInterval(checkTodayEvents,60000);
 
-displayEvents(events);
+window.onclick = function(event){
+
+const modal = document.getElementById("editModal");
+
+if(event.target===modal){
+
+closeEditModal();
+
+}
+
+}
+
+displayEvents(sortEvents(events));
+
+updateStats();
 
 </script>
 
