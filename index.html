@@ -376,6 +376,14 @@ font-size:18px;
 background:#ff3c00;
 }
 
+/* Background preview & safe defaults */
+body.custom-bg {
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
 @media (max-width:768px){
 .event{
 width:90%;
@@ -415,6 +423,24 @@ font-size:2em;
 <body>
 
 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
+
+<!-- Background picker UI -->
+<div id="backgroundControls" style="position:fixed;top:70px;right:20px;background:#111;padding:10px;border-radius:10px;z-index:999;color:#fff;border:1px solid #333;width:220px;">
+  <strong style="color:#ff6b3d">Background</strong>
+  <div style="margin-top:8px;">
+    <input type="file" id="bgFileInput" accept="image/*" style="display:block;margin-bottom:8px;">
+    <input type="text" id="bgUrlInput" placeholder="Enter image URL" style="width:100%;padding:6px;border-radius:6px;border:1px solid #444;background:#0a0a0a;color:#fff;" />
+    <div style="margin-top:8px;">
+      <input type="color" id="bgColorInput" title="Choose a solid background color" style="width:42px;height:34px;border:none;padding:0;background:none;vertical-align:middle;">
+      <button type="button" onclick="applyBgColor()" style="margin-left:8px;padding:6px 8px;border-radius:8px;background:#ff6b3d;border:none;color:#fff;cursor:pointer;">Use color</button>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:6px;">
+      <button type="button" onclick="applyBgUrl()" style="flex:1;padding:6px;border-radius:8px;background:#2196F3;border:none;color:#fff;cursor:pointer;">Use URL</button>
+      <button type="button" onclick="clearBackground()" style="flex:1;padding:6px;border-radius:8px;background:#d32f2f;border:none;color:#fff;cursor:pointer;">Clear</button>
+    </div>
+    <small style="display:block;margin-top:6px;color:#999">Image is stored in your browser (localStorage). Large images may be truncated.</small>
+  </div>
+</div>
 
 <h1>🎉 Event Finder</h1>
 
@@ -1011,160 +1037,120 @@ displayEvents(sortEvents(events));
 
 updateStats();
 
+showToast("✅ Event updated", "success");
+
 closeEditModal();
 
-showNotification("Event Updated",events[eventIndex].name+" has been updated");
-
-showToast(`✅ Event "${events[eventIndex].name}" updated!`, "success");
-
 }
 
 }
 
-function updateStats(){
+// --- Background picker logic ---
+const BG_KEY = "userBackground"; // stored as { type: 'image'|'color'|'none', value: 'data:url|url|#hex' }
 
-const statsContainer = document.getElementById("stats");
-
-const totalEvents = events.length;
-
-const categories = [...new Set(events.map(e=>e.category))].length;
-
-const upcomingEvents = events.filter(e=>new Date(e.date) >= new Date()).length;
-
-const remindersSet = events.filter(e=>e.reminderSet).length;
-
-statsContainer.innerHTML = `
-
-<div class="stat-box">
-
-<div class="stat-number">${totalEvents}</div>
-
-<div class="stat-label">Total Events</div>
-
-</div>
-
-<div class="stat-box">
-
-<div class="stat-number">${categories}</div>
-
-<div class="stat-label">Categories</div>
-
-</div>
-
-<div class="stat-box">
-
-<div class="stat-number">${upcomingEvents}</div>
-
-<div class="stat-label">Upcoming</div>
-
-</div>
-
-<div class="stat-box">
-
-<div class="stat-number">${remindersSet}</div>
-
-<div class="stat-label">Reminders Set</div>
-
-</div>
-
-`;
-
+function loadBackgroundFromStorage(){
+  try {
+    const raw = localStorage.getItem(BG_KEY);
+    if(!raw) return;
+    const bg = JSON.parse(raw);
+    applyBackgroundObject(bg, false);
+  } catch(e){
+    console.error("Failed to load background:", e);
+  }
 }
 
-function exportEvents(){
+function applyBackgroundObject(bg, save = true){
+  if(!bg || bg.type === "none"){
+    document.body.classList.remove("custom-bg");
+    // if darkMode is set, allow applyTheme to set color; otherwise reset
+    if(!darkMode){
+      document.body.style.background = "linear-gradient(135deg,#6dd5ed,#2193b0)";
+      document.body.style.color = "#333";
+    } else {
+      document.body.style.background = "#000";
+      document.body.style.color = "#fff";
+    }
+    if(save) localStorage.removeItem(BG_KEY);
+    return;
+  }
 
-const dataStr = JSON.stringify(events, null, 2);
+  if(bg.type === "color"){
+    document.body.classList.remove("custom-bg");
+    document.body.style.background = bg.value;
+    document.body.style.color = getContrastColor(bg.value);
+  } else if(bg.type === "image"){
+    document.body.classList.add("custom-bg");
+    document.body.style.background = `url("${bg.value}")`;
+    // keep text color choice from theme; do not force contrast for images
+  }
 
-const dataBlob = new Blob([dataStr], {type: "application/json"});
-
-const url = URL.createObjectURL(dataBlob);
-
-const link = document.createElement("a");
-
-link.href = url;
-
-link.download = "events-" + new Date().toISOString().split('T')[0] + ".json";
-
-link.click();
-
-showToast("📥 Events exported successfully!", "success");
-
+  if(save){
+    localStorage.setItem(BG_KEY, JSON.stringify(bg));
+  }
 }
 
-function importEvents(){
-
-document.getElementById("fileInput").click();
-
+/* Helper to pick readable text color for a solid background */
+function getContrastColor(hex){
+  try{
+    const c = hex.substring(1);
+    const r = parseInt(c.substring(0,2),16);
+    const g = parseInt(c.substring(2,4),16);
+    const b = parseInt(c.substring(4,6),16);
+    const yiq = ((r*299)+(g*587)+(b*114))/1000;
+    return (yiq >= 128) ? "#111" : "#fff";
+  } catch(e){
+    return "#fff";
+  }
 }
 
-function handleFileImport(){
+/* File upload -> store as data URL */
+document.getElementById("bgFileInput").addEventListener("change", function(ev){
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const dataUrl = e.target.result;
+    applyBackgroundObject({type:"image", value: dataUrl}, true);
+    showToast("✅ Background image set", "success");
+  };
+  reader.onerror = function(){
+    showToast("❌ Failed to read file", "error");
+  };
+  reader.readAsDataURL(file);
+});
 
-const file = document.getElementById("fileInput").files[0];
-
-if(file){
-
-const reader = new FileReader();
-
-reader.onload = function(e){
-
-try{
-
-const imported = JSON.parse(e.target.result);
-
-if(Array.isArray(imported)){
-
-events = [...events, ...imported.map(evt => ({...evt, id: generateId()}))];
-
-saveEvents();
-
-displayEvents(sortEvents(events));
-
-updateStats();
-
-showToast(`✅ Successfully imported ${imported.length} events!`, "success");
-
+/* Use URL button */
+function applyBgUrl(){
+  const url = document.getElementById("bgUrlInput").value.trim();
+  if(!url){
+    showToast("❌ Enter an image URL first", "error");
+    return;
+  }
+  if(!/^https?:\/\//i.test(url)){
+    showToast("⚠️ Use a full http(s) URL", "info");
+  }
+  applyBackgroundObject({type:"image", value: url}, true);
+  showToast("✅ Background URL applied", "success");
 }
 
-else{
-
-showToast("❌ Invalid file format", "error");
-
+/* Use color */
+function applyBgColor(){
+  const c = document.getElementById("bgColorInput").value;
+  applyBackgroundObject({type:"color", value: c}, true);
+  showToast("✅ Background color applied", "success");
 }
 
+function clearBackground(){
+  applyBackgroundObject({type:"none"}, true);
+  showToast("🧹 Background cleared", "info");
 }
 
-catch(err){
-
-showToast("❌ Error importing file", "error");
-
-}
-
-}
-
-reader.readAsText(file);
-
-}
-
-document.getElementById("fileInput").value = "";
-
-}
-
-function resetForm(){
-
-document.getElementById("eventForm").reset();
-
-}
-
-/* Initialize on load */
-
-window.addEventListener('load', function(){
-
-displayEvents(sortEvents(events));
-
-updateStats();
-
-updateNotificationStatus();
-
+// Ensure initial load applies background and notification checker
+window.addEventListener("load", function(){
+  loadBackgroundFromStorage();
+  if(notificationsEnabled){
+    startNotificationChecker();
+  }
 });
 
 </script>
