@@ -537,8 +537,25 @@ font-size:2em;
 /* Global theme state */
 let darkMode = localStorage.getItem("darkMode") !== "false";
 
+// Default sunset background URL (used when user hasn't set a custom background)
+const defaultBgUrl = 'https://images.unsplash.com/photo-1501973801540-537f08ccae7b?auto=format&fit=crop&w=1650&q=80';
+
+/* Apply default background if user hasn't set one */
+function applyDefaultBackground(){
+  if(!localStorage.getItem('backgroundImage')){
+    document.body.classList.add('custom-bg');
+    document.body.style.backgroundImage = `url('${defaultBgUrl}')`;
+  }
+}
+
 /* Apply theme on load */
 function applyTheme(){
+// If a custom background is present, respect it and only set text color (don't overwrite background)
+if(document.body.classList.contains('custom-bg')){
+  document.body.style.color = darkMode ? "#fff" : "#333";
+  return;
+}
+
 if(darkMode){
 document.body.style.background = "#000";
 document.body.style.color = "#fff";
@@ -556,6 +573,7 @@ applyTheme();
 showToast(darkMode ? "🌙 Dark mode enabled" : "☀️ Light mode enabled", "info");
 }
 
+applyDefaultBackground();
 applyTheme();
 
 /* Global notification state */
@@ -608,7 +626,7 @@ toast.remove();
 
 let events = JSON.parse(localStorage.getItem("events")) || [
 
-{ id:1, name:"Music Festival",date:"2026-05-10",time:"18:00",category:"Music",location:"City Park",description:"Annual music festival with live performances",reminderSet:false,reminderTime:null,notified:false },
+{ id:1, name:"Music Festival",date:"2026-05-10",time:"18:00",category:"Music",location:"City Park",description:"Annual music festival with live performances",reminderSet:false,reminderTime:null,notifi...},
 
 { id:2, name:"Tech Meetup",date:"2026-05-12",time:"19:00",category:"Tech",location:"Innovation Hub",description:"Network with tech enthusiasts",reminderSet:false,reminderTime:null,notified:false }
 
@@ -998,160 +1016,6 @@ document.getElementById("editModal").style.display = "none";
 editingId = null;
 
 }
-
-function updateEvent(e){
-
-e.preventDefault();
-
-const eventIndex = events.findIndex(ev=>ev.id===editingId);
-
-if(eventIndex > -1){
-
-events[eventIndex] = {
-
-id:editingId,
-
-name:document.getElementById("editName").value,
-
-date:document.getElementById("editDate").value,
-
-time:document.getElementById("editTime").value,
-
-location:document.getElementById("editLocation").value,
-
-category:document.getElementById("editCategory").value,
-
-description:document.getElementById("editDescription").value,
-
-reminderSet:events[eventIndex].reminderSet,
-
-reminderTime:events[eventIndex].reminderTime,
-
-notified:events[eventIndex].notified
-
-};
-
-saveEvents();
-
-displayEvents(sortEvents(events));
-
-updateStats();
-
-showToast("✅ Event updated", "success");
-
-closeEditModal();
-
-}
-
-}
-
-// --- Background picker logic ---
-const BG_KEY = "userBackground"; // stored as { type: 'image'|'color'|'none', value: 'data:url|url|#hex' }
-
-function loadBackgroundFromStorage(){
-  try {
-    const raw = localStorage.getItem(BG_KEY);
-    if(!raw) return;
-    const bg = JSON.parse(raw);
-    applyBackgroundObject(bg, false);
-  } catch(e){
-    console.error("Failed to load background:", e);
-  }
-}
-
-function applyBackgroundObject(bg, save = true){
-  if(!bg || bg.type === "none"){
-    document.body.classList.remove("custom-bg");
-    // if darkMode is set, allow applyTheme to set color; otherwise reset
-    if(!darkMode){
-      document.body.style.background = "linear-gradient(135deg,#6dd5ed,#2193b0)";
-      document.body.style.color = "#333";
-    } else {
-      document.body.style.background = "#000";
-      document.body.style.color = "#fff";
-    }
-    if(save) localStorage.removeItem(BG_KEY);
-    return;
-  }
-
-  if(bg.type === "color"){
-    document.body.classList.remove("custom-bg");
-    document.body.style.background = bg.value;
-    document.body.style.color = getContrastColor(bg.value);
-  } else if(bg.type === "image"){
-    document.body.classList.add("custom-bg");
-    document.body.style.background = `url("${bg.value}")`;
-    // keep text color choice from theme; do not force contrast for images
-  }
-
-  if(save){
-    localStorage.setItem(BG_KEY, JSON.stringify(bg));
-  }
-}
-
-/* Helper to pick readable text color for a solid background */
-function getContrastColor(hex){
-  try{
-    const c = hex.substring(1);
-    const r = parseInt(c.substring(0,2),16);
-    const g = parseInt(c.substring(2,4),16);
-    const b = parseInt(c.substring(4,6),16);
-    const yiq = ((r*299)+(g*587)+(b*114))/1000;
-    return (yiq >= 128) ? "#111" : "#fff";
-  } catch(e){
-    return "#fff";
-  }
-}
-
-/* File upload -> store as data URL */
-document.getElementById("bgFileInput").addEventListener("change", function(ev){
-  const file = ev.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e){
-    const dataUrl = e.target.result;
-    applyBackgroundObject({type:"image", value: dataUrl}, true);
-    showToast("✅ Background image set", "success");
-  };
-  reader.onerror = function(){
-    showToast("❌ Failed to read file", "error");
-  };
-  reader.readAsDataURL(file);
-});
-
-/* Use URL button */
-function applyBgUrl(){
-  const url = document.getElementById("bgUrlInput").value.trim();
-  if(!url){
-    showToast("❌ Enter an image URL first", "error");
-    return;
-  }
-  if(!/^https?:\/\//i.test(url)){
-    showToast("⚠️ Use a full http(s) URL", "info");
-  }
-  applyBackgroundObject({type:"image", value: url}, true);
-  showToast("✅ Background URL applied", "success");
-}
-
-/* Use color */
-function applyBgColor(){
-  const c = document.getElementById("bgColorInput").value;
-  applyBackgroundObject({type:"color", value: c}, true);
-  showToast("✅ Background color applied", "success");
-}
-
-function clearBackground(){
-  applyBackgroundObject({type:"none"}, true);
-  showToast("🧹 Background cleared", "info");
-}
-
-// Ensure initial load applies background and notification checker
-window.addEventListener("load", function(){
-  loadBackgroundFromStorage();
-  if(notificationsEnabled){
-    startNotificationChecker();
-  }
-});
 
 </script>
 
